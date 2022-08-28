@@ -7,7 +7,7 @@ from player import *
 # Print formatted output to the console.
 
 # Create a new Cycle object.
-length = {'day': 10, 'night': 4, 'voting': 4, 'judging': 3}
+length = {'day': 5, 'night': 4, 'voting': 4, 'judging': 3}
 cycle = Cycle('day', length)
 
 tick = False
@@ -17,7 +17,7 @@ prevPhase = 'day'
 players = []
 
 # Create two new players.
-for i in range(2):
+for i in range(8):
     tmpPlayer = createPlayer('Player ' + str(i), 'Player ' + str(i) + '#0000')
     players.append(tmpPlayer)
 
@@ -26,14 +26,14 @@ rolelist = getRolelist(len(players), '1v1')
 
 # Assign the each player a random role from the rolelist.
 # remove the role from the rolelist.
-'''for player in players:
+for player in players:
     player.setRole(random.choice(rolelist))
-    rolelist.remove(player.getRole())'''
+    rolelist.remove(player.getRole())
 
-# Set Player 1 to Villager
-players[0].setRole(Villager())
-# Set Player 2 to Werewolf
-players[1].setRole(Werewolf())
+# for each werewolf, set their target to a random Villager.
+for player in players:
+    if player.getRole().name == 'Werewolf':
+        player.setTarget(random.choice(players))
 
 print('Players:')
 for player in players:
@@ -41,7 +41,7 @@ for player in players:
 print('\n')
 
 
-game = False
+game = True
 
 # Update the cycle every second.
 while game:
@@ -55,14 +55,23 @@ while game:
     else:
         tick = False
     
+    if tick:
+        # for each player
+        for player in players:
+            # perform the action for the player
+            player.action(prevPhase)
+
     # print formatted output to the console, detailing if a tick has occurred.
     print('\n' + '-' * 20)
     print('Current phase: ' + cycle.getPhase())
     print('Phase time: ' + str(cycle.getPhaseTime()))
-    print('Phase length: ' + str(cycle.getPhaseLength()))
-    print('Phase changed: ' + str(cycle.getPhaseChanged()))
-    print('Previous phase: ' + prevPhase)
-    print('Tick: ' + str(tick))
+    # print information about the players, name, role, target, and dead status.
+    print('Players:')
+    for player in players:
+        print(player.getName() + ': ' + player.getRole().getName())
+        if player.getTarget() != None:
+            print('Target: ' + player.getTarget().getName())
+        print('Dead: ' + str(player.getDead()))
     print('-' * 20)
 
     cycle.setPhaseChanged(False)

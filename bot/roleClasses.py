@@ -12,6 +12,8 @@ class BaseRole:
         self.tempImmunity = 0
         self.bypasses = bypasses
         self.phases = phases
+        self.dead = False
+        self.val = 0
 
     # Function to perform the action of the role.
     def action(self, player, target):
@@ -25,10 +27,14 @@ class BaseRole:
             return attack['value'] > self.immunity + self.tempImmunity
 
     # Function to perform the action of the role.
-    def performAction(self, player, target):
+    def performAction(self, player, target, phase):
+        if (self.dead): return
         # if the current phase is in the phases list, perform the action
-        if cycle.getPhase() in self.phases:
-            self.action(player, target)
+        if phase in self.phases:
+            return self.action(player, target)
+        else:
+            print('{} cannot perform action in phase {}'.format(self.name, cycle.getPhase()))
+            return False
     
     def getName(self):
         return self.name
@@ -72,13 +78,13 @@ class Werewolf(BaseRole):
         # If the target can be killed, kill them.
         if self.canKillTarget(target):
             target.kill()
+            return True
+        else:
+            print("Cant kill target.")
+            return False
 
     def canKillTarget(self, target):
         return target.role.canDieFrom({'source': self.alignment, 'value': self.strength})
-
-    def performAction(self, player, target):
-        if cycle.getPhase() == 'night':
-            self.action(player, target)
 
 # Add the Werewolf role to the roleDictionary
 roleDictionary['Werewolf'] = Werewolf
@@ -91,6 +97,6 @@ class Villager(BaseRole):
 
     # The Villager doesnt do anything, so it just returns.
     def performAction(self, player, target):
-        pass
+        return True
 
 roleDictionary['Villager'] = Villager

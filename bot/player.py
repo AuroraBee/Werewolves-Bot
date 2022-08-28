@@ -6,9 +6,26 @@ class Player:
         self.role = None
         self.tag = 'NULL#0000'
         self.id = -1
-        self.target = -1
+        self.target: Player = None
         self.will = ''
         self.notes = ''
+
+    # Function to determine if the player can die from the attack.
+    def canDieFrom(self, attack):
+        return self.role.canDieFrom(attack)
+    
+    # Function that performs the action of the role.
+    def action(self, phase):
+        if self.target is None: return
+        performed = self.role.performAction(self, self.target, phase)
+        if performed:
+            self.target = None
+    
+    def kill(self):
+        self.role.dead = True
+    
+    def getDead(self):
+        return self.role.dead
 
     # Function to set the name
     def setName(self, name):
