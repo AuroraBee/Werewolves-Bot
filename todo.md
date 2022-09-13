@@ -3,7 +3,7 @@ Todo List for the Project of Mitesi.
 ## Todo
 
     * [x] Add a Day/Night cycle
-    * [ ] Refactor everything
+    * [x] Refactor everything
     * [ ] Simulate a 2 Player game
     * [ ] Attempt 4 Player game
     * [ ] Implement Mafia

@@ -33,7 +33,9 @@ class GuildSettings:
                 'day': None,
                 'dead': None,
                 'mafia': None,
-                'vampire': None,
+                'coven': None,
+                'werewolves': None,
+                'vampires': None,
                 'spectator': None
             },
             'playerChannels': {},

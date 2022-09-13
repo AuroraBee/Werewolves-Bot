@@ -28,6 +28,10 @@ class Player:
         if self.channel and message:
             await self.channel.send(message)
     
+    async def send_private(self, message):
+        if self.member and message:
+            await self.member.send(message)
+    
     # Function to set the role of the player
     def setRole(self, role: BaseRole):
         self.role = role

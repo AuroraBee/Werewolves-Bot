@@ -1,3 +1,4 @@
+from fileinput import lineno
 from cycle import Cycle
 import time
 import random
@@ -81,9 +82,15 @@ class Game:
             elif channel == 'mafia':
                 # Set the description
                 await self.settings['channels'][channel].edit(topic='Mafia Chat, to plot and plan murderous acts.')
-            elif channel == 'vampire':
+            elif channel == 'vampires':
                 # Set the description
                 await self.settings['channels'][channel].edit(topic='Vampire Chat, to plan whom to convert next, may they be town. Or simply to discuss the weather.')
+            elif channel == 'coven':
+                # Set the description
+                await self.settings['channels'][channel].edit(topic='Coven Chat, to act upon thine witchy ways, with thine coven behind thine back.')
+            elif channel == 'werewolves':
+                # Set the description
+                await self.settings['channels'][channel].edit(topic='Werewolf Chat, to discuss the latest gossip, and to plan the next attack.')
             # Allow the spectator role to read every channel, but disallow them to write and react
             await self.settings['channels'][channel].set_permissions(self.settings['roles']['spectator'], read_messages=True, send_messages=False, read_message_history=True, add_reactions=False)
 
@@ -126,7 +133,34 @@ class Game:
     def get_player(self, member: discord.Member):
         return self.getPlayer(member)
 
+    async def distribute_roles(self):
+        rolelist = getRolelist(len(self.players), self.settings['rolelist'])
+        # shuffle the rolelist
+        random.shuffle(rolelist)
+        # For each player in self.players
+        for player in self.players:
+            player.setRole(rolelist.pop())
+            # If the role has a channel, add the player to the channel
+            if player.role.hasChannel:
+                # If the player is a mafia, add them to the mafia channel
+                if player.role.alignment == 'mafia':
+                    # Change the mafia channel's permissions to allow the player to read and write
+                    await self.settings['channels']['mafia'].set_permissions(player.member, read_messages=True, send_messages=True)
+                    await self.settings['channels']['mafia'].send(f'{player.member.mention} is a {player.role.name}')
+                elif player.role.alignment == 'vampire':
+                    # Change the vampire channel's permissions to allow the player to read and write
+                    await self.settings['channels']['vampires'].set_permissions(player.member, read_messages=True, send_messages=True)
+                    await self.settings['channels']['vampires'].send(f'{player.member.mention} is a {player.role.name}')
+                elif player.role.alignment == 'werewolf':
+                    # Change the werewolf channel's permissions to allow the player to read and write
+                    await self.settings['channels']['werewolves'].set_permissions(player.member, read_messages=True, send_messages=True)
+                    await self.settings['channels']['werewolves'].send(f'{player.member.mention} is a {player.role.name}')
+                elif player.role.alignment == 'coven':
+                    # Change the coven channel's permissions to allow the player to read and write
+                    await self.settings['channels']['coven'].set_permissions(player.member, read_messages=True, send_messages=True)
+                    await self.settings['channels']['coven'].send(f'{player.member.mention} is a {player.role.name}')
+
     # Update function: Ticks every second
     def update(self):
-        print('Updating...')
+        # TODO: integrate Day/Night cycle
 

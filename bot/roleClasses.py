@@ -14,6 +14,7 @@ class BaseRole:
         self.phases = phases
         self.hasMultipleTargets = False
         self.votingCount = 1
+        self.hasChannel = False
         # priority is used to determine the order in which the roles perform their actions
         # higher priority roles perform their actions first
         self.priority = 1
@@ -78,6 +79,7 @@ class Werewolf(BaseRole):
         self.immunity = 1
         self.bypasses = {'admin': True}
         self.phases = ['night']
+        self.hasChannel = True
 
     def action(self, player, target):
         # If the target can be killed, kill them.

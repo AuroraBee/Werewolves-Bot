@@ -34,62 +34,16 @@ with open('secretConfig/token.txt', 'r') as f:
 token = [x.strip() for x in token]
 token = token[0]
 
-# load the bot's config
-with open('secretConfig/config.txt', 'r') as f:
-    config = f.readlines()
-config = [x.strip() for x in config]
-
-discordroles = {}
-
 bot = MitesiClient()
 # Command tree
 tree = app_commands.CommandTree(bot)
 tree.clear_commands(guild = None)
 
-'''
-async def update():
-    while True:
-        game.update()
-        await asyncio.sleep(game.updateTimer)
-
-
-# Command to give the player role to the person who sent the command
-@tree.command(name='participate', description='Gives the player role to the person who sent the command', guild = discord.Object(id = '1013481020328251432'))
-async def self(ctx: discord.Interaction):
-    await ctx.user.add_roles(discordroles['player'])
-    await ctx.response.send_message('You have been given the player role', ephemeral=True)
-
-# Command to remove the player role from the person who sent the command
-@tree.command(name='leave', description='Removes the player role from the person who sent the command', guild = discord.Object(id = '1013481020328251432'))
-async def self(ctx: discord.Interaction):
-    await ctx.user.remove_roles(discordroles['player'])
-    await ctx.response.send_message('You have been removed from the player role', ephemeral=True)
-    game.removeParticipant(ctx.user)
-
-# Deferred command to start the game
-@tree.command(name='start', description='Starts the game', guild = discord.Object(id = '1013481020328251432'))
-async def self(ctx: discord.Interaction):
-    game.start()
-    await ctx.response.send_message('Game started!')
-
-# Command to tick the game
-@tree.command(name='tick', description='Ticks the game', guild = discord.Object(id = '1013481020328251432'))
-async def self(ctx: discord.Interaction):
-    game.update()
-    await ctx.response.send_message('Game ticked!')
-
-# Command to loop the game
-@tree.command(name='startloop', description='Loops the game', guild = discord.Object(id = '1013481020328251432'))
-async def self(ctx: discord.Interaction):
-    # use asyncio to start the game loop
-    asyncio.create_task(update())
-    await ctx.response.send_message('Game loop started!')
-'''
-
 async def loop(guildID):
+    game = guilds[guildID][1]
     while True:
-        await asyncio.sleep(1)
-        guilds[guildID][1].update()
+        await asyncio.sleep(game.updateTimer)
+        game.update()
 
 @tree.command(name='setup', description='Sets everything up', guild = discord.Object(id = '1013481020328251432'))
 async def self(ctx: discord.Interaction):
@@ -162,7 +116,7 @@ async def self(ctx: discord.Interaction, spectator: bool = False):
         return
     elif game.running and spectator:
         # Let them join as a spectator
-        await ctx.user.add_roles(discordroles['spectator'])
+        await ctx.user.add_roles(settings['roles']['spectator'])
         await ctx.response.send_message('You have joined as a spectator.', ephemeral=True)
         return
 
@@ -220,20 +174,29 @@ async def self(ctx: discord.Interaction):
     settings = guilds[ctx.guild_id][0].settings
     game = guilds[ctx.guild_id][1]
 
+    # Get the game master role
+    game_master = settings['roles']['game master']
+
     # If the game is running and the user is a player, set them to dying
     if game.running and settings['roles']['player'] in roles:
         # Set the player to dying
         game.get_player(ctx.user).kill()
         # Send a leave message in #day
         await settings['channels']['day'].send(f'{ctx.user.mention} has left the game!')
-
-    # Remove every game related role
-    for role in settings['roles']:
-        # skip the Game Master role
-        if role == settings['roles']['game master']:
+    
+    # Remove read and write permissions from the channels
+    for channel in settings['channels'].values():
+        try:
+            await channel.set_permissions(ctx.user, overwrite=None)
+        except:
             pass
-        if settings['roles'][role] in roles:
-            await ctx.user.remove_roles(settings['roles'][role])
+
+    # Remove every game related role, except the game master role
+    for role in roles:
+        if role != game_master:
+            # Make sure the role is a game role
+            if role in settings['roles'].values():
+                await ctx.user.remove_roles(role)
     
     guilds[ctx.guild_id][0].remove_participant(ctx.user)
     
@@ -375,5 +338,36 @@ async def self(ctx: discord.Interaction):
 
     # Run the game loop
     await loop(ctx.guild_id)
+
+# Command to distribute roles
+@tree.command(name='distribute', description='Distribute roles', guild = discord.Object(id = '1013481020328251432'))
+async def self(ctx: discord.Interaction):
+    # Get the guild settings
+    settings = guilds[ctx.guild_id][0].settings
+    guildsettings: GuildSettings = guilds[ctx.guild_id][0]
+    game: Game = guilds[ctx.guild_id][1]
+
+    # Get the game master role
+    game_master = settings['roles']['game master']
+
+    # If the user is not the game master
+    if game_master not in ctx.user.roles:
+        await ctx.response.send_message('You are not the game master', ephemeral=True)
+        return
+
+    # If the game is already running
+    if game.running:
+        await ctx.response.send_message('The game is already running', ephemeral=True)
+        return
+
+    # Distribute the roles
+    await game.distribute_roles()
+
+    # Send a message to each player
+    for player in game.players:
+        await player.send_private(f'You are a {player.role}')
+
+    await ctx.response.send_message('The roles have been distributed', ephemeral=True)
+
 # start the bot
 bot.run(token)
