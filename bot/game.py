@@ -60,7 +60,7 @@ class Game:
                 await self.settings['channels'][channel].edit(topic='Day 1 - 60 seconds left')
                 # Allow the alive role to read and write, but disallow the dead role to write
                 await self.settings['channels'][channel].set_permissions(self.settings['roles']['alive'], read_messages=True, send_messages=True)
-                await self.settings['channels'][channel].set_permissions(self.settings['roles']['dead'], read_messages=True, send_messages=False)
+                await self.settings['channels'][channel].set_permissions(self.settings['roles']['dead'], read_messages=True, send_messages=False, add_reactions=False)
             # If the channel is the dead channel
             elif channel == 'dead':
                 # Set the description
@@ -90,6 +90,43 @@ class Game:
     async def setup_players(self):
         # For each player in self.settings['players']
         for player in self.settings['players']:
-            
+            newPlayer = Player(player, self.settings['players'][player], self.guildsettings)
+            self.players.append(newPlayer)
+            # Give the player the alive role
+            await newPlayer.member.add_roles(self.settings['roles']['alive'])
+            # Give the player the player role if they don't have it
+            if self.settings['roles']['player'] not in newPlayer.member.roles:
+                await newPlayer.member.add_roles(self.settings['roles']['player'])
 
+            # Rename the player to their name (self.settings['players'][player])
+            # Check if the bot the necessary permissions to do so
+            if self.guild.me.guild_permissions.manage_nicknames:
+                try:
+                    await newPlayer.member.edit(nick=self.settings['players'][player])
+                except discord.Forbidden:
+                    print('Bot does not have permission to change nicknames')
+
+            # Create the player's private channel and set the permissions for it
+            newPlayer.channel = await self.guild.create_text_channel(self.settings['players'][player], category=self.guildsettings.category)
+            await newPlayer.channel.set_permissions(self.guild.default_role, read_messages=False, send_messages=False)
+            await newPlayer.channel.set_permissions(self.settings['roles']['spectator'], read_messages=True, send_messages=False, read_message_history=True, add_reactions=False)
+            await newPlayer.channel.set_permissions(newPlayer.member, read_messages=True, send_messages=True)
+            # Change description
+            await newPlayer.channel.edit(topic=f'Private channel for {self.settings["players"][player]}. Use /t and write your targets name to target them.')
+
+            # Add the channel to the settings
+            self.settings['playerChannels'][self.settings['players'][newPlayer.id]] = newPlayer.channel
+
+    def getPlayer(self, member: discord.Member):
+        for player in self.players:
+            if player.member == member:
+                return player
+        return None
+    
+    def get_player(self, member: discord.Member):
+        return self.getPlayer(member)
+
+    # Update function: Ticks every second
+    def update(self):
+        print('Updating...')
 

@@ -11,15 +11,17 @@ class BaseRole:
         self.immunity = immunity
         self.tempImmunity = 0
         self.bypasses = bypasses
-        self.phases = phases#
-        self.hasChannel = False
+        self.phases = phases
         self.hasMultipleTargets = False
         self.votingCount = 1
+        # priority is used to determine the order in which the roles perform their actions
+        # higher priority roles perform their actions first
+        self.priority = 1
         self.val = 0
 
     # Function to perform the action of the role.
     def action(self, player, target):
-        pass
+        return "This role has no action."
 
     # Function to determine if a given attack can kill this role.
     def canDieFrom(self, attack):
@@ -29,14 +31,15 @@ class BaseRole:
             return attack['value'] > self.immunity + self.tempImmunity
 
     # Function to perform the action of the role.
-    def performAction(self, player, target, phase):
+    # targets is a dict of {1: target1, 2: target2}
+    def performAction(self, player, targets: dict, phase):
         if (self.dead): return
         # if the current phase is in the phases list, perform the action
         if phase in self.phases:
-            return self.action(player, target)
+            return self.action(player, targets)
         else:
             print('{} cannot perform action in phase {}'.format(self.name, phase))
-            return False
+            return None
     
     def getName(self):
         return self.name

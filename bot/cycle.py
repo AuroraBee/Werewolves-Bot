@@ -8,6 +8,7 @@ class Cycle:
         self.phaseTime = 0
         self.phase_length = length[phase]
         self.phaseChanged = False
+        self.dayCount = 1
     
     def update(self):
         self.phaseTime = time.time() - self.lastTime
@@ -27,6 +28,7 @@ class Cycle:
             return 'night'
         # if the phase is night, move to day
         elif self.phase == 'night':
+            self.dayCount += 1
             return 'day'
         else:
             print('Error: invalid phase')

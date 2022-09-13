@@ -86,6 +86,11 @@ async def self(ctx: discord.Interaction):
     await ctx.response.send_message('Game loop started!')
 '''
 
+async def loop(guildID):
+    while True:
+        await asyncio.sleep(1)
+        guilds[guildID][1].update()
+
 @tree.command(name='setup', description='Sets everything up', guild = discord.Object(id = '1013481020328251432'))
 async def self(ctx: discord.Interaction):
     settings = GuildSettings(bot, ctx.guild)
@@ -103,16 +108,42 @@ async def self(ctx: discord.Interaction):
 # Command to print information about the game
 @tree.command(name='info', description='Prints information about the game', guild = discord.Object(id = '1013481020328251432'))
 async def self(ctx: discord.Interaction):
-    await ctx.response.send_message(guilds[ctx.guild_id][0].settings, ephemeral=True)
+    game = guilds[ctx.guild_id][1]
+    response = '```'
+    # send game stats: daycount, time in day, players, running, prev phase
+    response += '\nGame stats:\n'
+    response += 'Day: ' + str(game.cycle.dayCount) + '\n'
+    response += 'Time in day: ' + str(game.cycle.phaseTime) + '\n'
+    response += 'Players: ' + str(game.players) + '\n'
+    response += 'Running: ' + str(game.running) + '\n'
+    response += 'Previous phase: ' + str(game.prevPhase) + '\n\n'
+
+    # also send information about each player
+    # send player stats: name, death status, dying, voting, targets, rolename
+    response += 'Player stats:\n'
+    for player in game.players:
+        response += 'Name: ' + str(player.name) + '\n'
+        response += 'Dead: ' + str(player.dead) + '\n'
+        response += 'Dying: ' + str(player.dying) + '\n'
+        response += 'Voting: ' + str(player.voting) + '\n'
+        response += 'Targets: ' + str(player.targets) + '\n'
+        response += 'Role: ' + str(player.roleName) + '\n\n'
+    response += '```'
+
+    await ctx.response.send_message(response, ephemeral=True)
 
 # game.channel_setup() command to set up the channels
 @tree.command(name='channel_setup', description='Sets up the channels', guild = discord.Object(id = '1013481020328251432'))
 async def self(ctx: discord.Interaction):
-    # Get the guild settings
     game = guilds[ctx.guild_id][1]
-
     # Set up the channels
     await game.channel_setup()
+
+@tree.command(name='player_setup', description='Sets up the players', guild = discord.Object(id = '1013481020328251432'))
+async def self(ctx: discord.Interaction):
+    game = guilds[ctx.guild_id][1]
+    # Set up the channels
+    await game.setup_players()
 
 # Join command with options to join as a player or a spectator
 @tree.command(name='join', description='Join the game', guild = discord.Object(id = '1013481020328251432'))
@@ -123,6 +154,17 @@ async def self(ctx: discord.Interaction, spectator: bool = False):
     # Get the guild settings
     settings = guilds[ctx.guild_id][0].settings
     guildsettings: GuildSettings = guilds[ctx.guild_id][0]
+    game = guilds[ctx.guild_id][1]
+
+    # If the game is running, don't let them join
+    if game.running and not spectator:
+        await ctx.response.send_message('The game is already running!', ephemeral=True)
+        return
+    elif game.running and spectator:
+        # Let them join as a spectator
+        await ctx.user.add_roles(discordroles['spectator'])
+        await ctx.response.send_message('You have joined as a spectator.', ephemeral=True)
+        return
 
     # If the user already has the player role and is not a spectator
     if settings['roles']['player'] in roles and not spectator:
@@ -176,12 +218,20 @@ async def self(ctx: discord.Interaction):
 
     # Get the guild settings
     settings = guilds[ctx.guild_id][0].settings
+    game = guilds[ctx.guild_id][1]
+
+    # If the game is running and the user is a player, set them to dying
+    if game.running and settings['roles']['player'] in roles:
+        # Set the player to dying
+        game.get_player(ctx.user).kill()
+        # Send a leave message in #day
+        await settings['channels']['day'].send(f'{ctx.user.mention} has left the game!')
 
     # Remove every game related role
     for role in settings['roles']:
         # skip the Game Master role
-        if role == settings['roles']['game_master']:
-            continue
+        if role == settings['roles']['game master']:
+            pass
         if settings['roles'][role] in roles:
             await ctx.user.remove_roles(settings['roles'][role])
     
@@ -192,15 +242,20 @@ async def self(ctx: discord.Interaction):
 # Command to target a player
 @tree.command(name='direct_target', description='Target a player by mention', guild = discord.Object(id = '1013481020328251432'))
 async def self(ctx: discord.Interaction, player: discord.Member):
-    # Ping the player
+    game = guilds[ctx.guild_id][1]
+
+    # Get the user's Player object and set the target
+    await game.get_player(ctx.user).set_target(player)
+
     await ctx.response.send_message(f'You have targeted {player.mention}', ephemeral=True)
 
 # Command to target a player
-@tree.command(name='t', description='Target a player', guild = discord.Object(id = '1013481020328251432'))
+@tree.command(name='t', description='Target a player (shorthand)', guild = discord.Object(id = '1013481020328251432'))
 async def self(ctx: discord.Interaction, player: str):
     # Get the guild settings
     settings = guilds[ctx.guild_id][0].settings
     guildsettings = guilds[ctx.guild_id][0]
+    game = guilds[ctx.guild_id][1]
 
     # Get a list of all the players (Dict of ID: normalizedName)
     players: dict = guildsettings.get_participants()
@@ -220,6 +275,9 @@ async def self(ctx: discord.Interaction, player: str):
     
     # Get the player object
     player = ctx.guild.get_member(player)
+    
+    # Get the user's Player object and set the target
+    await game.get_player(ctx.user).set_target(player)
 
     # Ping the player
     await ctx.response.send_message(f'You have targeted {player.mention}', ephemeral=True)
@@ -230,6 +288,7 @@ async def self(ctx: discord.Interaction, player: str):
     # Get the guild settings
     settings = guilds[ctx.guild_id][0].settings
     guildsettings = guilds[ctx.guild_id][0]
+    game = guilds[ctx.guild_id][1]
 
     # Get a list of all the players (Dict of ID: normalizedName)
     players: dict = guildsettings.get_participants()
@@ -250,8 +309,71 @@ async def self(ctx: discord.Interaction, player: str):
     # Get the player object
     player = ctx.guild.get_member(player)
 
+    # Get the user's Player object and set the target
+    await game.get_player(ctx.user).set_target(player)
+
     # Ping the player
     await ctx.response.send_message(f'You have targeted {player.mention}', ephemeral=True)
 
+# Command to vote for a player
+@tree.command(name='vote', description='Vote for a player', guild = discord.Object(id = '1013481020328251432'))
+async def self(ctx: discord.Interaction, player: str):
+    # Get the guild settings
+    settings = guilds[ctx.guild_id][0].settings
+    guildsettings = guilds[ctx.guild_id][0]
+    game = guilds[ctx.guild_id][1]
+
+    # Get a list of all the players (Dict of ID: normalizedName)
+    players: dict = guildsettings.get_participants()
+    # Get the player whose name closest matches the input
+    # using difflib
+    player = difflib.get_close_matches(player, players.values(), n=1, cutoff=0.5)
+    # Get the player ID
+    # for each key in the dict, if the value matches the player name
+    try:
+        for key in players:
+            if players[key] == player[0]:
+                player = key
+                break
+    except IndexError:
+        await ctx.response.send_message('No such player found', ephemeral=True)
+        return
+    
+    # Get the player object
+    player = ctx.guild.get_member(player)
+
+    # Get the user's Player object and set the target
+    await game.get_player(ctx.user).set_vote(player)
+
+    # Ping the player
+    await ctx.response.send_message(f'You have voted for {player.mention}', ephemeral=True)
+
+# Command to run loop()
+@tree.command(name='run', description='Run the game', guild = discord.Object(id = '1013481020328251432'))
+async def self(ctx: discord.Interaction):
+    # Get the guild settings
+    settings = guilds[ctx.guild_id][0].settings
+    guildsettings = guilds[ctx.guild_id][0]
+    game = guilds[ctx.guild_id][1]
+
+    # Get the game master role
+    game_master = settings['roles']['game master']
+
+    # If the user is not the game master
+    if game_master not in ctx.user.roles:
+        await ctx.response.send_message('You are not the game master', ephemeral=True)
+        return
+
+    # If the game is already running
+    if game.running:
+        await ctx.response.send_message('The game is already running', ephemeral=True)
+        return
+
+    # Start the game
+    game.running = True
+    await ctx.response.send_message('The game has started', ephemeral=True)
+
+    # Run the game loop
+    await loop(ctx.guild_id)
 # start the bot
 bot.run(token)
