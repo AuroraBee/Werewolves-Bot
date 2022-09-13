@@ -65,6 +65,3 @@ class Cycle:
     def setPhaseChanged(self, phaseChanged):
         self.phaseChanged = phaseChanged
 
-
-# global cycle
-cycle = Cycle('day')

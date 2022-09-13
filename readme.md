@@ -8,7 +8,7 @@ Install the dependencies with `pip install -r requirements.txt`.
 
 ### Requirements
 
-* Python 3.6+
+* Python 3.8+
 * discord.py
 * lupa
 

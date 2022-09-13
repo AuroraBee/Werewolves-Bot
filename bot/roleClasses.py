@@ -1,4 +1,4 @@
-from cycle import cycle
+from cycle import Cycle
 from commons import *
 
 # Base class for roles.
@@ -11,8 +11,10 @@ class BaseRole:
         self.immunity = immunity
         self.tempImmunity = 0
         self.bypasses = bypasses
-        self.phases = phases
-        self.dead = False
+        self.phases = phases#
+        self.hasChannel = False
+        self.hasMultipleTargets = False
+        self.votingCount = 1
         self.val = 0
 
     # Function to perform the action of the role.
@@ -33,7 +35,7 @@ class BaseRole:
         if phase in self.phases:
             return self.action(player, target)
         else:
-            print('{} cannot perform action in phase {}'.format(self.name, cycle.getPhase()))
+            print('{} cannot perform action in phase {}'.format(self.name, phase))
             return False
     
     def getName(self):
